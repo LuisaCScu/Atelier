@@ -1,16 +1,15 @@
 import { generateImage } from "ai";
 import { aiKey, responsesUrl, visionModel } from "@/lib/ai-connection";
+import {photoApiForbidden,photoApisAllowed} from '@/lib/photo-api-guard';
 import {NextRequest,NextResponse} from 'next/server';
 export const runtime='nodejs';
 export const maxDuration=300;
 const roles=['top','bottom','dress','outerwear','shoes','bag','accessory'];
-// The preview has device-local profiles, not authenticated production accounts.
-// Keep this paid endpoint loopback-only until server sessions and quotas exist.
-function local(req:NextRequest){const host=req.headers.get('host')||'';const origin=req.headers.get('origin');return /^(127\.0\.0\.1|localhost):\d+$/.test(host)&&(!origin||origin===`http://${host}`);}
-export async function GET(req:NextRequest){if(!local(req))return NextResponse.json({error:'Local preview only.'},{status:403});return NextResponse.json({ready:!!aiKey(),model:process.env.CLOSET_IMAGE_MODEL||'gpt-image-2.5-sunburst'});}
+// Paid photo APIs stay loopback-only unless ATELIER_ALLOW_HOSTED_PHOTO_APIS is enabled.
+export async function GET(req:NextRequest){if(!photoApisAllowed(req))return photoApiForbidden();return NextResponse.json({ready:!!aiKey(),model:process.env.CLOSET_IMAGE_MODEL||'gpt-image-2.5-sunburst'});}
 let busy=false;
 export async function POST(req:NextRequest){
- if(!local(req))return NextResponse.json({error:'Local preview only.'},{status:403});
+ if(!photoApisAllowed(req))return photoApiForbidden();
  const key=aiKey();
  if(!key)return NextResponse.json({error:'GPT cutouts need the private OpenAI API connection. No photo was sent.'},{status:503});
  if(busy)return NextResponse.json({error:'Another photo is processing. Please wait.'},{status:429});
