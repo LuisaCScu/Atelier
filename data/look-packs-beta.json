@@ -1,0 +1,50 @@
+{
+  "catalogVersion": "mvp-2026-09-09-coord-accessories-1",
+  "packs": [
+    {
+      "id": "pack-soft-satin-work",
+      "title": "Soft Satin Work",
+      "hook": "Satin blouse, godet maxi, soft loafer",
+      "formula": "satin blouse + godet maxi + soft loafer",
+      "occasion": "work",
+      "pieceIds": ["satin-tie-blouse", "zw-satin-godet-maxi-skirt", "soft-ruched-loafers"],
+      "heroImage": "https://atelier-theta-one.vercel.app/cutouts/mttq-hero-soft-satin-work.png"
+    },
+    {
+      "id": "pack-soft-coat-travel",
+      "title": "Soft Coat Travel",
+      "hook": "Ecru coat, poplin, maxi, white sneaker",
+      "formula": "ecru soft coat + poplin + godet maxi + white sneaker",
+      "occasion": "travel",
+      "pieceIds": ["soft-belted-coat", "basic-poplin-shirt-blue-white", "zw-satin-godet-maxi-skirt", "blucher-sneakers"],
+      "heroImage": "https://atelier-theta-one.vercel.app/cutouts/mttq-hero-soft-coat-travel.png"
+    },
+    {
+      "id": "pack-harbor-night",
+      "title": "Harbor Night Column",
+      "hook": "Ribbed tank, satin godet maxi, beige pump",
+      "formula": "ribbed tank + satin godet maxi + beige pump",
+      "occasion": "night",
+      "pieceIds": ["ribbed-wavy-hem-tank", "zw-satin-godet-maxi-skirt", "leather-high-heeled-shoes-beige"],
+      "heroImage": "https://atelier-theta-one.vercel.app/cutouts/mttq-hero-harbor-night.png"
+    },
+    {
+      "id": "pack-event-soft-satin",
+      "title": "Event Soft Satin",
+      "hook": "Satin blouse, godet maxi, patent slingback",
+      "formula": "satin blouse + godet maxi + patent slingback",
+      "occasion": "event",
+      "pieceIds": ["satin-tie-blouse", "zw-satin-godet-maxi-skirt", "patent-slingback-pumps"],
+      "heroImage": "https://atelier-theta-one.vercel.app/cutouts/mttq-hero-event-soft-satin.png"
+    },
+    {
+      "id": "pack-harbor-everyday-denim",
+      "title": "Bright Harbor Weekend",
+      "hook": "Clear red blazer, mid-blue jean, white sneaker",
+      "formula": "clear red blazer + mid-blue jean + white sneaker",
+      "occasion": "weekend",
+      "pieceIds": ["zw-collection-blazer-red", "z1975-high-rise-long-length-jeans-mid-blue", "blucher-sneakers"],
+      "heroImage": "https://atelier-theta-one.vercel.app/looks/heroes/lp-harbor-everyday-denim-worn.png"
+    }
+  ]
+}

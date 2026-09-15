@@ -1,0 +1,20 @@
+Walkthrough stills — personalize polish
+2026-09-08
+
+01-gender-gate.jpg        Retired — Friend is women-only; gender question removed
+02-filtered-outfits.jpg   Women’s style cards (no gender gate)
+03-shape-picker.jpg       Deep measurements: gentle overall-shape picker
+04-color-why.jpg          Color analysis (superseded by 10 — predicted, no picker)
+05-deep-styles.jpg        Deep styles (superseded by 11 — photoreal cards)
+06-priorities.jpg         Quick: What’s important multi-select chips
+
+07-photos-face-angles.jpg Deep photos: one face + front/side/back (no fabric likes)
+08-shape-torso.jpg        Shape includes defined waist (hourglass) + torso length
+09-color-12-season.jpg    Prior still with a season picker (superseded by 10)
+10-color-predicted.jpg    Color: predicted season + swatches + why; no season picker
+11-style-photos-deep.jpg  Deep styles: photoreal full-outfit like/pass (Unsplash)
+12-style-photos-quick.jpg Quick: women’s photoreal outfit likes
+13-vibe-aesthetics-quick.jpg Quick vibe grid: named edits (Paddock Cashmere, Harbor Granddaughter)
+14-lookbook-grid.jpg      Generated looks with catchy aesthetic titles
+15-look-detail-shop.jpg   Look detail: LTK shop-the-look hero + why
+16-look-detail-tiles.jpg  Look detail: shoppable product tiles + Shop stubs
