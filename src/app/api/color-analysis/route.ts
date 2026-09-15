@@ -1,10 +1,10 @@
 import { aiKey, responsesUrl, visionModel } from "@/lib/ai-connection";
+import {photoApiForbidden,photoApisAllowed} from '@/lib/photo-api-guard';
 import {NextRequest,NextResponse} from 'next/server';
 import {palettes} from '@/lib/stylist';
 export const runtime='nodejs';
 export async function POST(req:NextRequest){
- const host=req.headers.get('host')||'',origin=req.headers.get('origin');
- if(!/^(127\.0\.0\.1|localhost):\d+$/.test(host)||(origin&&origin!==`http://${host}`))return NextResponse.json({error:'Local preview only.'},{status:403});
+ if(!photoApisAllowed(req))return photoApiForbidden();
  if(!aiKey())return NextResponse.json({error:'Photo analysis needs the OpenAI connection. You can choose your season without a photo.'},{status:503});
  try{
  const raw=await req.text();if(raw.length>8_000_000)return NextResponse.json({error:'Choose a smaller photo.'},{status:413});
