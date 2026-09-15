@@ -1,39 +1,12 @@
 import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
-  allowedDevOrigins: ["127.0.0.1", "localhost"],
-  images: {
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "images.unsplash.com",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
-        hostname: "atelier-assets.vercel.app",
-        pathname: "/**",
-      },
-    ],
-  },
-  // Client ML cutout (@imgly/background-removal) — keep out of the Node server graph.
-  serverExternalPackages: ["@imgly/background-removal", "onnxruntime-web"],
+const config: NextConfig = {
+  images: { unoptimized: true },
   async redirects() {
     return [
-      { source: "/looks", destination: "/how", permanent: false },
-      { source: "/looks/:path*", destination: "/how", permanent: false },
-      { source: "/closet/add/manual", destination: "/closet/add/note", permanent: false },
-      { source: "/you", destination: "/profile", permanent: false },
+      ...["style", "closet", "lookbook", "profile", "planner", "inspiration", "discover"].map(view => ({ source: `/${view}/:path*`, destination: `/#${view}`, permanent: false })),
+      ...["start", "quick", "personalize", "you"].map(path => ({ source: `/${path}/:path*`, destination: "/#profile", permanent: false })),
+      ...["looks", "how", "about", "contact", "privacy", "terms", "disclosure", "premium", "upgrade"].map(path => ({ source: `/${path}/:path*`, destination: "/", permanent: false })),
     ];
   },
-  webpack: (config) => {
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      sharp$: false,
-      "onnxruntime-node$": false,
-    };
-    return config;
-  },
 };
-
-export default nextConfig;
+export default config;

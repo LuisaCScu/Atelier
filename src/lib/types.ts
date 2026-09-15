@@ -163,7 +163,7 @@ export interface ProfileSession {
   styleDeckIds?: string[];
   styleCardShownAt?: Record<string, number>;
   /** Aggregated swipe + look-feedback axes for Stylist. */
-  styleSignals?: import("./style-signals").StyleSignalsV1;
+  styleSignals?: unknown;
   /** Per-look votes; replayed on top of the swipe quiz prior. */
   lookFeedback?: LookFeedbackVote[];
   deepDone: Partial<Record<DeepStep, boolean>>;

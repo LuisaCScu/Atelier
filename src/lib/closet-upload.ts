@@ -1,0 +1,4 @@
+export type UploadPhoto={id:string;name:string;image:string;detected:boolean;error?:string};
+export type UploadItem={id:string;sourceId:string;name:string;role:string;color:string;selected:boolean;image?:string;error?:string};
+export function restoreUpload(raw:string){const data=JSON.parse(raw);if(Array.isArray(data.photos)&&Array.isArray(data.items))return {photos:data.photos as UploadPhoto[],items:data.items as UploadItem[]};if(data.photo)return {photos:[{id:'legacy',name:'Original photo',image:data.photo,detected:!!data.items?.length}],items:(data.items||[]).map((item:UploadItem,i:number)=>({...item,id:'legacy-'+i,sourceId:'legacy'}))};return {photos:[],items:[]};}
+export function selectWithinCapacity(items:UploadItem[],remaining:number){let slots=Math.max(0,remaining);return items.map(item=>({...item,selected:item.selected&&slots-->0}));}
