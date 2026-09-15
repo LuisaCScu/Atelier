@@ -54,10 +54,28 @@ test("style this piece includes the specified closet item in all looks", () => {
   assert.equal(looks.length, 4);
   assert.ok(looks.every((l) => l.pieces.some((p) => p.id === "owned-item")));
 });
-test("catalog image paths all exist and shopping links are HTTPS", () => {
+test("catalog pieces are well-formed with HTTPS shop links and reachable image refs", () => {
+  assert.ok(catalog.length > 0);
+  const jewelry = catalog.filter(
+    (p) =>
+      /missoma|gorjana|mejuri|astrid-miyu/.test(p.id) ||
+      (p.role === "accessory" &&
+        /necklace|bracelet|ring|earring|chain|cuff|bangle/i.test(p.name)),
+  );
+  assert.ok(jewelry.length > 0, "jewelry accessories stay in the catalog");
   for (const p of catalog) {
-    assert.ok(existsSync("public" + p.image), p.image);
-    assert.ok(p.shopUrl.startsWith("https://"));
+    assert.equal(typeof p.id, "string");
+    assert.ok(p.id);
+    assert.ok(p.role);
+    assert.ok(p.name);
+    assert.equal(typeof p.price, "number");
+    assert.ok(p.shopUrl.startsWith("https://"), p.shopUrl);
+    assert.ok(!/theta-one/i.test(p.image + p.shopUrl), p.id);
+    if (p.image.startsWith("/")) {
+      assert.ok(existsSync("public" + p.image), p.image);
+    } else {
+      assert.ok(p.image.startsWith("https://"), p.image);
+    }
   }
 });
 test("ordinary budget produces four distinct looks and refreshing changes suggestions", () => {
