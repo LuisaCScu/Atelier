@@ -23,7 +23,7 @@ const ready = defaultSession({
   deepDone: { budget: true },
 });
 assert.equal(isReturningSignedIn(ready), true);
-assert.equal(shouldAutoFirstStoreFirst(ready), true);
+assert.equal(shouldAutoFirstStoreFirst(ready), false);
 
 const used = defaultSession({
   name: "Luisa",
@@ -54,7 +54,7 @@ assert.doesNotMatch(home + landing + login, /Instagram/);
 assert.doesNotMatch(home, /Add to closet/);
 assert.doesNotMatch(home, /Want fittings/);
 assert.match(home, /What is Atelier/);
-assert.match(home, /redirect\("\/lookbook"\)/);
+assert.match(home, /redirect\("\/style"\)/);
 
 const tour = readFileSync(new URL("../src/components/nav-tour.tsx", import.meta.url), "utf8");
 assert.match(tour, /NAV_TOUR_KEY/);

@@ -1,5 +1,6 @@
 import { normalizeClosetItem } from "./closet-roles";
-import { CLOSET_FREE_CAP, type ClosetItem } from "./types";
+import { parseOccasionIds, parseOccasionNote } from "./style-chat";
+import { CLOSET_FREE_CAP, type ClosetItem, type OccasionId } from "./types";
 import {
   parseClosetPieceId,
   parseGenerateMode,
@@ -23,12 +24,12 @@ export type ClosetPacketOptions = {
   httpsOnly?: boolean;
 };
 
-/** Closet modes must never strip piece images; storeFirst/styleThisPiece same when closet is non-empty. */
+/** Closet modes must never strip piece images; storeFirst/styleThisPiece/styleChat same when closet is non-empty. */
 export function shouldForceAllClosetImages(
   mode: StylistGenerateModeV1,
   closetLength: number
 ): boolean {
-  if (mode === "closetFirst") return true;
+  if (mode === "closetFirst" || mode === "styleChat") return true;
   return closetLength > 0 && (mode === "storeFirst" || mode === "styleThisPiece");
 }
 
@@ -164,11 +165,13 @@ export async function closetFromRequest(request: Request) {
   return undefined;
 }
 
-/** Closet + generateMode (+ closetPieceId) from generate/regenerate API (JSON or form). Body is consumed once. */
+/** Closet + generateMode (+ closetPieceId, occasion brief) from generate/regenerate API (JSON or form). Body is consumed once. */
 export async function stylistGenerateOptionsFromRequest(request: Request): Promise<{
   closet?: StylistClosetPieceV1[];
   generateMode: StylistGenerateModeV1;
   closetPieceId?: string;
+  occasions?: OccasionId[];
+  occasionNote?: string;
 }> {
   const contentType = request.headers.get("content-type") || "";
   try {
@@ -178,23 +181,35 @@ export async function stylistGenerateOptionsFromRequest(request: Request): Promi
         closetJson?: unknown;
         generateMode?: unknown;
         closetPieceId?: unknown;
+        occasions?: unknown;
+        occasion?: unknown;
+        occasionNote?: unknown;
+        details?: unknown;
       };
       const generateMode = parseGenerateMode(body.generateMode);
       const closetPieceId = parseClosetPieceId(body.closetPieceId);
+      const occasions = parseOccasionIds(body.occasions) ?? parseOccasionIds(body.occasion);
+      const occasionNote = parseOccasionNote(body.occasionNote ?? body.details);
       return {
         closet: parseClosetPacketForMode(body.closet ?? body.closetJson, generateMode, closetPieceId),
         generateMode,
         ...(generateMode === "styleThisPiece" && closetPieceId ? { closetPieceId } : {}),
+        ...(occasions ? { occasions } : {}),
+        ...(occasionNote ? { occasionNote } : {}),
       };
     }
     if (contentType.includes("form")) {
       const data = await request.formData();
       const generateMode = parseGenerateMode(data.get("generateMode"));
       const closetPieceId = parseClosetPieceId(data.get("closetPieceId"));
+      const occasions = parseOccasionIds(data.getAll("occasion")) ?? parseOccasionIds(data.get("occasions"));
+      const occasionNote = parseOccasionNote(data.get("occasionNote") ?? data.get("details"));
       return {
         closet: parseClosetPacketForMode(data.get("closetJson"), generateMode, closetPieceId),
         generateMode,
         ...(generateMode === "styleThisPiece" && closetPieceId ? { closetPieceId } : {}),
+        ...(occasions ? { occasions } : {}),
+        ...(occasionNote ? { occasionNote } : {}),
       };
     }
   } catch {

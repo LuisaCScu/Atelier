@@ -3,8 +3,8 @@ import { LookbookLive } from "@/components/lookbook-live";
 import { firstName } from "@/lib/format";
 import { generateAccess, isFreeFirstBoard } from "@/lib/freemium";
 import { defaultSession } from "@/lib/generate";
-import { shouldAutoFirstStoreFirst } from "@/lib/onboarding";
 import { readSession } from "@/lib/session";
+import { utcDayKey } from "@/lib/stylist-budget";
 import { activeStylistRequestId, resolveStylistLooks, sessionRequestIds } from "@/lib/stylist";
 import { inboxResponse, readInbox } from "@/lib/stylist-inbox";
 
@@ -18,8 +18,11 @@ export default async function StylePage({
 }) {
   const session = await readSession();
   const { requestId: queryRequestId, quota } = await searchParams;
-  const quotaExhausted = quota === "exhausted";
-  const autoFirstStoreFirst = shouldAutoFirstStoreFirst(session);
+  const quotaExhausted =
+    quota === "exhausted" ||
+    Boolean(session && !session.hasPremium && session.lastFreeGenerateDay === utcDayKey());
+  const generateAction: "/generate" | "/regenerate" =
+    session?.generated || session?.stylistRequestId ? "/regenerate" : "/generate";
 
   if (!session?.generated && !queryRequestId && !session?.stylistRequestId) {
     return (
@@ -28,7 +31,7 @@ export default async function StylePage({
         generateUserKey={session?.generateUserKey}
         generateAccess={generateAccess(session)}
         showStyleCtas
-        autoFirstStoreFirst={autoFirstStoreFirst}
+        showProfileCta={!session}
       />
     );
   }
@@ -138,7 +141,7 @@ export default async function StylePage({
       pendingStyleThisPiece={pendingStyleThisPiece}
       pendingGenerate={pendingGenerate}
       showStyleCtas
-      autoFirstStoreFirst={false}
+      generateAction={generateAction}
       lookVotes={session?.lookFeedback?.map((item) => ({
         lookId: item.lookId,
         vote: item.vote,

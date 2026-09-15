@@ -12,20 +12,12 @@ export function isReturningSignedIn(session?: ProfileSession | null): boolean {
 }
 
 /**
- * First-board auto storeFirst is allowed only when this is truly the first generate ever:
- * no prior request, free board unused, and no look votes yet.
- * Prefer firing from post-profile ready (`preheatFirstBoardStoreFirst`) so Style is a fallback.
+ * First-board auto storeFirst is parked: Style chat collects occasion first
+ * so we do not burn the free 1/day generate without a brief.
  */
 export function shouldAutoFirstStoreFirst(
-  session?: ProfileSession | null,
-  opts?: { lookVoteCount?: number }
+  _session?: ProfileSession | null,
+  _opts?: { lookVoteCount?: number }
 ): boolean {
-  if (!session) return false;
-  if (session.hasUsedFreeBoard) return false;
-  if (session.stylistRequestId) return false;
-  if ((session.stylistRequestIds?.length ?? 0) > 0) return false;
-  if ((session.lookFeedback?.length ?? 0) > 0) return false;
-  if ((opts?.lookVoteCount ?? 0) > 0) return false;
-  // Profile must be ready to generate (budget done, or styles liked for quick path).
-  return Boolean(session.deepDone?.budget || (session.likedStyleIds?.length ?? 0) >= 2);
+  return false;
 }

@@ -139,6 +139,10 @@ export interface ProfileSession {
   neckCm?: number;
   size: string;
   occasions: OccasionId[];
+  /** Last Style-chat details ("dinner, keep it easy") — sent as `occasionNote` on the packet. */
+  styleBrief?: string;
+  /** UTC YYYY-MM-DD of the last free 4-look generate (1/day cap). */
+  lastFreeGenerateDay?: string;
   colors: ColorId[];
   vibes: VibeId[];
   priorities: PriorityId[];
@@ -283,7 +287,7 @@ export interface ClosetItem {
   gender: "female";
 }
 
-export const CLOSET_FREE_CAP = 10;
+export const CLOSET_FREE_CAP = 10; // freemium: 10 closet items on free (see src/lib/freemium.ts)
 export const CLOSET_INVITE_KEY = "atelier.closetInvite.v1";
 
 export interface StyleCard {

@@ -30,7 +30,7 @@ export default async function LookbookPage({
       </header>
       <h1 className="mt-7 font-serif text-[32px] leading-tight">Lookbook</h1>
       <p className="mt-2 text-[14px] leading-6 text-black/50">
-        Your saved fashion book — Wear and Maybe. Shoppable tiles. Active Style boards live under Style.
+        Saved Wear and Maybe — a quiet fashion book. Free holds 10 looks. New outfits start on Style.
       </p>
       <section className="mt-6">
         <LikedLookbook />

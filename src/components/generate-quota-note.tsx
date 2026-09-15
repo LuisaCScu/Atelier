@@ -13,11 +13,15 @@ export type BudgetSnapshot = {
   ok: true;
   globalDaily: BudgetBucket;
   userGenerate: BudgetBucket | null;
+  freeGenerate?: BudgetBucket | null;
 };
 
 export function quotaMessage(snapshot: BudgetSnapshot): string | null {
   if (snapshot.globalDaily.exhausted) {
     return "Today’s studio queue is full. New looks open again tomorrow.";
+  }
+  if (snapshot.freeGenerate?.exhausted) {
+    return "You’ve used today’s free look request. More tomorrow.";
   }
   if (snapshot.userGenerate?.exhausted) {
     return `You’ve used today’s ${snapshot.userGenerate.limit} look requests. More tomorrow.`;

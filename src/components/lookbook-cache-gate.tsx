@@ -13,13 +13,13 @@ export function LookbookCacheGate({
   generateUserKey,
   generateAccess,
   showStyleCtas = false,
-  autoFirstStoreFirst = false,
+  showProfileCta = true,
 }: {
   quotaExhausted?: boolean;
   generateUserKey?: string | null;
   generateAccess?: GenerateAccess;
   showStyleCtas?: boolean;
-  autoFirstStoreFirst?: boolean;
+  showProfileCta?: boolean;
 }) {
   const [cached, setCached] = useState<ReturnType<typeof findCachedLooks> | undefined>(undefined);
 
@@ -43,7 +43,7 @@ export function LookbookCacheGate({
         freeBoard={Boolean(cached.looks[3]?.fittingLocked)}
         generateAccess={generateAccess}
         showStyleCtas={showStyleCtas}
-        autoFirstStoreFirst={false}
+        generateAction="/regenerate"
       />
     );
   }
@@ -57,16 +57,22 @@ export function LookbookCacheGate({
       </header>
       <h1 className="mt-10 font-serif text-[32px] leading-tight">Style</h1>
       <p className="mt-2 text-[14px] leading-6 text-black/50">
-        Create new looks or style your closet. Generating wait and the active board live here.
+        Tell me what you’re dressing for. I’ll make four looks — one from your closet, two mixed, one from the store.
       </p>
       {showStyleCtas ? (
-        <StyleGenerateCtas className="mt-8" autoFirstStoreFirst={autoFirstStoreFirst} />
+        <StyleGenerateCtas
+          className="mt-8"
+          action="/generate"
+          quotaExhausted={quotaExhausted}
+          generateAccess={generateAccess}
+          generateUserKey={generateUserKey}
+        />
       ) : null}
-      {autoFirstStoreFirst ? null : (
+      {showProfileCta ? (
         <a href="/personalize" className={`${ctaPrimary} ${showStyleCtas ? "mt-4" : "mt-8"}`}>
           Create profile
         </a>
-      )}
+      ) : null}
     </AppShell>
   );
 }

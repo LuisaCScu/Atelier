@@ -56,6 +56,9 @@ export function buildLookFingerprint(input: LookFingerprintInput): string {
     budgetMax: s.budgetMax ?? null,
     priorities: [...(s.priorities ?? [])].sort(),
     occasions: [...(s.occasions ?? [])].sort(),
+    ...(typeof s.styleBrief === "string" && s.styleBrief.trim()
+      ? { styleBrief: s.styleBrief.trim().slice(0, 280) }
+      : {}),
     liked: [...(s.likedStyleIds ?? [])].sort(),
     disliked: [...(s.dislikedStyleIds ?? [])].sort(),
     fav: (s.favColors ?? []).map((c) => `${c.name}:${c.hex}`).sort(),

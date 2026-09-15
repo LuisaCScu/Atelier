@@ -8,6 +8,7 @@ export async function POST(request: Request) {
   if (names.length > 1) {
     redirect("/closet/add/video");
   }
+  // Freemium: 10 closet items on free (CLOSET_FREE_CAP / FREE_CLOSET_ITEM_CAP).
   if (closetWouldExceedCap(current, 1)) {
     redirect("/closet/upgrade");
   }

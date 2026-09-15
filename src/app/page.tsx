@@ -15,9 +15,9 @@ export default async function HomePage() {
     return <FirstRunHome />;
   }
 
-  // Returning signed-in → saved archive, never home generate upsell.
+  // Returning signed-in → Style (chat Generate). Lookbook is a saved archive, not home.
   if (isReturningSignedIn(session)) {
-    redirect("/lookbook");
+    redirect("/style");
   }
 
   const clash = seasonalClash();

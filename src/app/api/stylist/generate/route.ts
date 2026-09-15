@@ -13,8 +13,15 @@ export async function POST(request: Request) {
   if (!session) {
     return corsJson({ error: "No profile session. Finish personalize first." }, 400);
   }
-  const { closet, generateMode, closetPieceId } = await stylistGenerateOptionsFromRequest(request);
-  const result = await requestStylistLooks(session, { closet, generateMode, closetPieceId });
+  const { closet, generateMode, closetPieceId, occasions, occasionNote } =
+    await stylistGenerateOptionsFromRequest(request);
+  const result = await requestStylistLooks(session, {
+    closet,
+    generateMode,
+    closetPieceId,
+    occasions,
+    occasionNote,
+  });
   if (result.premiumRequired) {
     return corsJson(
       {
@@ -32,6 +39,7 @@ export async function POST(request: Request) {
         error: "Generate budget exhausted",
         globalDaily: result.budget.globalDaily,
         userGenerate: result.budget.userGenerate,
+        freeGenerate: result.budget.freeGenerate,
       },
       429
     );

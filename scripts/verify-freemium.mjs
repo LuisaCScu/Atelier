@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { applyFreeBoardFittings, generateAccess, isFreeFirstBoard, lookFittingLocked } from "../src/lib/freemium.ts";
+import { applyFreeBoardFittings, countsTowardFreeDailyGenerate, generateAccess, isFreeFirstBoard, lookFittingLocked, FREE_DAILY_GENERATE_LIMIT, FREE_LOOKBOOK_SAVE_CAP } from "../src/lib/freemium.ts";
 import { defaultSession } from "../src/lib/generate.ts";
 import { buildStylistRequest, FITTINGS_PARKED, parseStylistResponse, STYLIST_LOOK_COUNT } from "../src/lib/stylist-contract.ts";
 import { countsTowardUserGenerate } from "../src/lib/stylist-budget.ts";
@@ -117,5 +117,10 @@ if (FITTINGS_PARKED) {
   assert.equal(countsTowardUserGenerate(freeReq), true);
   assert.equal(countsTowardUserGenerate(premReq), true);
 }
+
+assert.equal(FREE_DAILY_GENERATE_LIMIT, 1);
+assert.equal(FREE_LOOKBOOK_SAVE_CAP, 10);
+assert.equal(countsTowardFreeDailyGenerate({ generateMode: "styleChat", lookCount: 4 }, "free"), true);
+assert.equal(countsTowardFreeDailyGenerate({ generateMode: "styleChat", lookCount: 4 }, "premium"), false);
 
 console.log("freemium lock: free create + fittings-parked tiles-only ok");

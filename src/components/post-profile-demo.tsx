@@ -13,7 +13,7 @@ type TourTab = "style" | "lookbook" | "closet" | "profile";
 type Phase = "intro" | "tour";
 
 const INTRO_COPY =
-  "While we style your first looks, let us show you how to get the most out of Atelier";
+  "A quick tour, then tell Style what you’re dressing for";
 
 const STEPS: Array<{
   id: TourTab;
@@ -24,13 +24,13 @@ const STEPS: Array<{
   {
     id: "style",
     title: "Style",
-    body: "Active board — Wear, Maybe, or No. Heart/X on the quiz and these votes teach the stylist; No removes; Wear + Maybe save to Lookbook.",
+    body: "Tell Atelier the occasion. You get four looks: one from your closet, two mixed, one from the store. Wear, Maybe, or No.",
     cta: "Next",
   },
   {
     id: "lookbook",
     title: "Lookbook",
-    body: "Wear and Maybe save here as a shoppable fashion book.",
+    body: "Wear and Maybe save here — up to 10 on free. Style is where new looks start.",
     cta: "Next",
   },
   {
@@ -113,9 +113,9 @@ function stylePath(requestId: string | null): string {
 type Spot = { top: number; left: number; width: number; height: number };
 
 /**
- * After budget / profile complete: kick first storeFirst in the background,
- * run intro + spotlight coach-mark tour (Style → Lookbook → Closet → Profile)
- * with polished destination previews, then land on `/style`.
+ * After budget / profile complete: run intro + spotlight coach-mark tour
+ * (Style → Lookbook → Closet → Profile), then land on `/style` for occasion chat.
+ * Auto storeFirst is parked so the free 1/day generate is not burned without a brief.
  */
 export function PostProfileDemo({
   autoGenerate = true,

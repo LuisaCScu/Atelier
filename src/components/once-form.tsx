@@ -22,7 +22,7 @@ export function OnceForm({
   method?: "get" | "post";
   className?: string;
   children: ReactNode;
-  /** Style my closet → closetFirst; Style a new outfit → storeFirst; How to style it → styleThisPiece. */
+  /** Style chat → styleChat; Style my closet → closetFirst; Style a new outfit → storeFirst; How to style it → styleThisPiece. */
   generateMode?: StylistGenerateModeV1;
   /** Required when generateMode is styleThisPiece. */
   closetPieceId?: string;
@@ -47,8 +47,8 @@ export function OnceForm({
   }
 
   function needsUnvotedGate(mode: StylistGenerateModeV1) {
-    // Style a new outfit / Style my closet (and regenerate) replace the active board.
-    return mode === "storeFirst" || mode === "closetFirst";
+    // Style chat / Style a new outfit / Style my closet replace the active board.
+    return mode === "styleChat" || mode === "storeFirst" || mode === "closetFirst";
   }
 
   function readUnvotedLeftovers() {

@@ -1,7 +1,7 @@
 "use client";
 
 import { LookBoard } from "@/components/look-board";
-import { loadLikedLooks, removeLikedLook, subscribeLikedLooks, type LikedLook } from "@/lib/liked-looks";
+import { likedLookSaveCap, loadLikedLooks, removeLikedLook, subscribeLikedLooks, type LikedLook } from "@/lib/liked-looks";
 import { lookbookCardTitle, type StylistLookV1 } from "@/lib/stylist-contract";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -53,8 +53,7 @@ export function LikedLookbook() {
   if (!items.length) {
     return (
       <p className="mt-3 text-[14px] leading-6 text-black/50">
-        Looks you mark Wear or Maybe land here — pieces and recipe. No removes them. Style boards stay under Style
-        until you vote.
+        Looks you mark Wear or Maybe land here — up to {likedLookSaveCap()} on free. New outfits start on Style.
       </p>
     );
   }
@@ -96,6 +95,9 @@ export function LikedLookbook() {
               <p className="font-serif text-[22px] leading-tight">{featureTitle}</p>
               <p className="mt-1 text-[11px] tracking-[0.08em] text-black/35 uppercase">
                 {spotlight + 1} / {ordered.length}
+                {ordered.length >= likedLookSaveCap() ? (
+                  <span className="ml-2 normal-case tracking-normal text-black/30">free max</span>
+                ) : null}
                 <span className="ml-2 normal-case tracking-normal text-black/30">
                   {feature.vote === "maybe" ? "Maybe" : "Wear"}
                 </span>

@@ -181,6 +181,10 @@ export function mergeSessionFromForm(current: ProfileSession, data: FormData): P
   }
 
   if (data.has("occasion")) next.occasions = allOf(data, "occasion", OCCASIONS);
+  const occasionNote = data.get("occasionNote") ?? data.get("styleBrief") ?? data.get("details");
+  if (typeof occasionNote === "string") {
+    next.styleBrief = occasionNote.trim().slice(0, 280);
+  }
   if (data.has("color")) next.colors = allOf(data, "color", COLORS);
   if (data.has("vibe")) next.vibes = allOf(data, "vibe", VIBES);
   if (data.has("hardNo")) next.hardNos = allOf(data, "hardNo", HARD_NOS);

@@ -19,8 +19,10 @@ import {
 } from "@/lib/home-lookbook";
 import { normalizeLikedVote, type LikedLookVote } from "@/lib/liked-looks";
 import { loadLookVotes, mergeHomeVotes, subscribeLookVotes } from "@/lib/look-votes";
-import { lookbookCardTitle,
+import {   lookbookCardTitle,
   lookCardLine,
+  lookMixCaption,
+  STYLE_CHAT_LOOK_MIX,
   type StylistGenerateModeV1,
   type StylistLookV1,
   type StylistResponseV1,
@@ -43,12 +45,13 @@ type Props = {
   lookVotes?: Array<{ lookId: string; vote: "like" | "dislike" | "skip"; reasons?: string[]; requestId?: string }>;
   /** Active styleThisPiece request pending — keep prior looks; never empty Generating takeover. */
   pendingStyleThisPiece?: { requestId: string; closetPieceId?: string; ready?: boolean } | null;
-  /** storeFirst/closetFirst pending — keep prior board + Generating badge. */
+  /** storeFirst/closetFirst/styleChat pending — keep prior board + Generating badge. */
   pendingGenerate?: { requestId: string; generateMode?: StylistGenerateModeV1 } | null;
-  /** Four-bucket Style tab: pin Create new looks (+ quiet closet) above wait/board. */
+  /** Four-bucket Style tab: pin occasion chat above wait/board. */
   showStyleCtas?: boolean;
-  /** First-board-only auto storeFirst — never regenerate. */
+  /** @deprecated Auto storeFirst removed — Style chat collects occasion first. */
   autoFirstStoreFirst?: boolean;
+  generateAction?: "/generate" | "/regenerate";
 };
 
 export function LookbookLive({
@@ -68,7 +71,8 @@ export function LookbookLive({
   pendingStyleThisPiece = null,
   pendingGenerate = null,
   showStyleCtas = false,
-  autoFirstStoreFirst = false,
+  autoFirstStoreFirst: _autoFirstStoreFirst = false,
+  generateAction = "/generate",
 }: Props) {
   const [payload, setPayload] = useState<StylistResponseV1 | null>(initial);
   const initialReadyForPending =
@@ -363,11 +367,13 @@ export function LookbookLive({
     generateMode,
     fittingCount,
   } as const;
-  // Tiles-only / FITTINGS_PARKED creates are not metered by userGenerate — never lock Create behind fittings burn.
+  // Tiles-only / FITTINGS_PARKED: fittings COGS is not metered, but free 1/day Style generate is.
   const tilesOnly =
     FITTINGS_PARKED || (fittingCount ?? 0) === 0 || generateMode === "styleThisPiece";
+  const freeDailyBlocked =
+    access !== "premium" && (quotaExhausted || Boolean(budget && quotaMessage(budget)));
   const paused = tilesOnly
-    ? false
+    ? freeDailyBlocked
     : quotaExhausted || Boolean(budget && quotaMessage(budget));
   const boardIdleOrReady = !pendingGenId || !generating;
   // Always pin single Create new looks — even while pending (force regenerate), never dual/no-op.
@@ -391,7 +397,13 @@ export function LookbookLive({
               <SlidersIcon />
             </a>
           </header>
-          {pinStyleCtas ? <StyleGenerateCtas className="mt-6" autoFirstStoreFirst={autoFirstStoreFirst} /> : null}
+          {pinStyleCtas ? <StyleGenerateCtas
+            className="mt-6"
+            action={generateAction}
+            quotaExhausted={paused}
+            generateAccess={access}
+            generateUserKey={generateUserKey}
+          /> : null}
           <h1 className="mt-7 font-serif text-[32px] leading-[1.1] tracking-tight">Your looks</h1>
         </AppShell>
       );
@@ -405,7 +417,13 @@ export function LookbookLive({
             <SlidersIcon />
           </a>
         </header>
-        {pinStyleCtas ? <StyleGenerateCtas className="mt-6" autoFirstStoreFirst={autoFirstStoreFirst} /> : null}
+        {pinStyleCtas ? <StyleGenerateCtas
+            className="mt-6"
+            action={generateAction}
+            quotaExhausted={paused}
+            generateAccess={access}
+            generateUserKey={generateUserKey}
+          /> : null}
         {showWait ? (
           <>
             <p className="mt-10 text-[12px] tracking-[0.14em] text-black/40 uppercase">Generating…</p>
@@ -432,7 +450,7 @@ export function LookbookLive({
           <>
             <h1 className="mt-7 font-serif text-[32px] leading-[1.1] tracking-tight">Ready for new looks, {name}</h1>
             <p className="mt-3 text-[15px] leading-6 text-black/50">
-              Tap Create new looks for a fresh board anytime.
+              Tell me the occasion and any details — I’ll make four looks.
             </p>
           </>
         )}
@@ -469,7 +487,13 @@ export function LookbookLive({
           </a>
         </header>
         {pinStyleCtas ? (
-          <StyleGenerateCtas className="mt-6" autoFirstStoreFirst={autoFirstStoreFirst} />
+          <StyleGenerateCtas
+            className="mt-6"
+            action={generateAction}
+            quotaExhausted={paused}
+            generateAccess={access}
+            generateUserKey={generateUserKey}
+          />
         ) : paused ? null : (
           <OnceForm action="/regenerate" generateMode="storeFirst" className="mt-6">
             <button type="submit" className="flex h-12 w-full items-center justify-center rounded-2xl bg-black px-4 text-[15px] font-medium text-white">
@@ -479,8 +503,8 @@ export function LookbookLive({
         )}
         <h1 className="mt-7 font-serif text-[32px] leading-[1.1] tracking-tight">Board cleared, {name}</h1>
         <p className="mt-3 text-[15px] leading-6 text-black/50">
-          Looks you passed on are gone from this board. Wear and Maybe live in your Lookbook — create new looks anytime
-          for a fresh set.
+          Looks you passed on are gone from this board. Wear and Maybe live in Lookbook (up to 10 on free) — ask for
+          new looks anytime.
         </p>
         <div className="mt-8 flex items-center justify-center gap-10 text-[13px] text-black/55">
           {paused ? (
@@ -504,7 +528,13 @@ export function LookbookLive({
           <SlidersIcon />
         </a>
       </header>
-      {pinStyleCtas ? <StyleGenerateCtas className="mt-6" autoFirstStoreFirst={autoFirstStoreFirst} /> : null}
+      {pinStyleCtas ? <StyleGenerateCtas
+            className="mt-6"
+            action={generateAction}
+            quotaExhausted={paused}
+            generateAccess={access}
+            generateUserKey={generateUserKey}
+          /> : null}
       {showGeneratingBadge ? (
         <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl border border-black/8 bg-white px-4 py-3">
           <div>
@@ -535,6 +565,7 @@ export function LookbookLive({
               initialVote={prior?.vote}
               initialReasons={prior?.reasons}
               softSaved={softSaved}
+              generateMode={generateMode}
               onDisposition={(vote) => onLookDisposition(look.id, vote)}
             />
           );
@@ -579,6 +610,7 @@ function LookbookCard({
   initialVote,
   initialReasons,
   softSaved,
+  generateMode,
   onDisposition,
 }: {
   look: StylistLookV1;
@@ -589,8 +621,12 @@ function LookbookCard({
   initialVote?: "like" | "dislike" | "skip";
   initialReasons?: string[];
   softSaved?: boolean;
+  generateMode?: StylistGenerateModeV1;
   onDisposition?: (vote: LikedLookVote) => void;
 }) {
+  const mixLine =
+    lookMixCaption(look.source) ||
+    (generateMode === "styleChat" ? lookMixCaption(STYLE_CHAT_LOOK_MIX[index]?.source) : "");
   return (
     <article>
       <a href={`/lookbook/${look.id}?from=style`} className="block">
@@ -600,6 +636,7 @@ function LookbookCard({
             {index + 1} {lookbookCardTitle(look)}
             {softSaved ? <span className="ml-2 text-[11px] font-normal tracking-wide text-[#c9a86a] uppercase">Saved</span> : null}
           </p>
+          {mixLine ? <p className="mt-0.5 text-[11px] tracking-[0.12em] text-black/35 uppercase">{mixLine}</p> : null}
           <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-black/45">{lookCardLine(look)}</p>
           <LookCardTotals look={look} budgetMax={budgetMax} />
         </div>

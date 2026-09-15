@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "fs/promises";
 import path from "path";
+import { FREE_DAILY_GENERATE_LIMIT } from "./freemium";
 import { redisCommand, redisConfigured } from "./stylist-inbox";
 import type { StylistRequestV1 } from "./stylist-contract";
 
@@ -9,6 +10,9 @@ import type { StylistRequestV1 } from "./stylist-contract";
  * Override with STYLIST_USER_DAILY_LIMIT or STYLIST_USER_GENERATE_LIMIT.
  */
 export const USER_GENERATE_DAILY_LIMIT = 5;
+
+/** Re-export so budget UI/tests share the product lock (1 free Style generate / UTC day). */
+export { FREE_DAILY_GENERATE_LIMIT };
 
 /** True when a create should meter userGenerate + global daily COGS (hero fittings). */
 export function countsTowardUserGenerate(
@@ -34,10 +38,12 @@ export type StylistBudgetSnapshot = {
   ok: true;
   globalDaily: BudgetBucket;
   userGenerate: BudgetBucket | null;
+  /** Free 4-look generates this UTC day (limit 1). Null when no userKey. Premium does not increment. */
+  freeGenerate: BudgetBucket | null;
 };
 
 type BudgetFile = {
-  days: Record<string, { global: number; users: Record<string, number> }>;
+  days: Record<string, { global: number; users: Record<string, number>; freeUsers?: Record<string, number> }>;
   requests: Record<string, string>;
   inflight?: Record<string, { requestId: string; at: number }>;
 };
@@ -88,6 +94,10 @@ function globalKey(day: string) {
 
 function userKeyName(userKey: string, day: string) {
   return `atelier:budget:v1:user:${userKey}:${day}`;
+}
+
+function freeGenerateKey(userKey: string, day: string) {
+  return `atelier:budget:v1:free-gen:${userKey}:${day}`;
 }
 
 function requestMapKey(requestId: string) {
@@ -185,11 +195,14 @@ export async function readStylistBudget(params: {
     try {
       const used = (await redisGetNumber(globalKey(day))) ?? 0;
       let userGenerate: BudgetBucket | null = null;
+      let freeGenerate: BudgetBucket | null = null;
       if (resolvedUser) {
         const userUsed = (await redisGetNumber(userKeyName(resolvedUser, day))) ?? 0;
         userGenerate = bucket(userUsed, userDailyLimit());
+        const freeUsed = (await redisGetNumber(freeGenerateKey(resolvedUser, day))) ?? 0;
+        freeGenerate = bucket(freeUsed, FREE_DAILY_GENERATE_LIMIT);
       }
-      return { ok: true, globalDaily: bucket(used, limit), userGenerate };
+      return { ok: true, globalDaily: bucket(used, limit), userGenerate, freeGenerate };
     } catch {
       /* fall through to file — do not block generate on a Redis read miss */
     }
@@ -200,7 +213,10 @@ export async function readStylistBudget(params: {
   const userGenerate = resolvedUser
     ? bucket(dayRow.users[resolvedUser] ?? 0, userDailyLimit())
     : null;
-  return { ok: true, globalDaily: bucket(dayRow.global, limit), userGenerate };
+  const freeGenerate = resolvedUser
+    ? bucket(dayRow.freeUsers?.[resolvedUser] ?? 0, FREE_DAILY_GENERATE_LIMIT)
+    : null;
+  return { ok: true, globalDaily: bucket(dayRow.global, limit), userGenerate, freeGenerate };
 }
 
 /** Map requestId → userKey (+ inflight) without INCR — for tiles-only creates. */
@@ -259,6 +275,10 @@ export async function incrementGenerateBudget(params: {
         ok: true,
         globalDaily: bucket(Number(globalUsed) || 0, limit),
         userGenerate: bucket(Number(userUsed) || 0, userDailyLimit()),
+        freeGenerate: bucket(
+          (await redisGetNumber(freeGenerateKey(userKey, day))) ?? 0,
+          FREE_DAILY_GENERATE_LIMIT
+        ),
       };
     } catch {
       /* fall through */
@@ -281,12 +301,68 @@ export async function incrementGenerateBudget(params: {
     ok: true,
     globalDaily: bucket(dayRow.global, limit),
     userGenerate: bucket(dayRow.users[userKey], userDailyLimit()),
+    freeGenerate: bucket(dayRow.freeUsers?.[userKey] ?? 0, FREE_DAILY_GENERATE_LIMIT),
+  };
+}
+
+/** INCR the free 1-generate/day bucket. Does not touch fitting COGS (userGenerate / global). */
+export async function incrementFreeDailyGenerate(params: {
+  userKey: string;
+  requestId: string;
+}): Promise<StylistBudgetSnapshot> {
+  const day = utcDayKey();
+  const userKey = params.userKey.trim();
+  const after = await readStylistBudget({ userKey, requestId: params.requestId });
+  if (!userKey) return after;
+
+  if (redisConfigured()) {
+    try {
+      const used = await redisCommand<number>(["INCR", freeGenerateKey(userKey, day)]);
+      if (used == null) throw new Error("redis incr missed");
+      await redisCommand(["EXPIRE", freeGenerateKey(userKey, day), TTL_SECONDS]);
+      await recordBudgetRequestMapping({ userKey, requestId: params.requestId });
+      const live = await readStylistBudget({ userKey, requestId: params.requestId });
+      return { ...live, freeGenerate: bucket(Number(used) || 0, FREE_DAILY_GENERATE_LIMIT) };
+    } catch {
+      /* fall through */
+    }
+  }
+
+  const store = await readFileStore();
+  const dayRow = store.days[day] ?? { global: 0, users: {} };
+  dayRow.freeUsers = { ...(dayRow.freeUsers ?? {}) };
+  dayRow.freeUsers[userKey] = (dayRow.freeUsers[userKey] ?? 0) + 1;
+  store.days[day] = dayRow;
+  store.requests[params.requestId] = userKey;
+  store.inflight = { ...(store.inflight ?? {}), [userKey]: { requestId: params.requestId, at: Date.now() } };
+  try {
+    await writeFileStore(store);
+  } catch {
+    /* local/dev only */
+  }
+  return {
+    ok: true,
+    globalDaily: bucket(dayRow.global, globalDailyLimit()),
+    userGenerate: bucket(dayRow.users[userKey] ?? 0, userDailyLimit()),
+    freeGenerate: bucket(dayRow.freeUsers[userKey], FREE_DAILY_GENERATE_LIMIT),
   };
 }
 
 export function budgetExhausted(snapshot: StylistBudgetSnapshot): boolean {
   if (snapshot.globalDaily.exhausted) return true;
   return Boolean(snapshot.userGenerate?.exhausted);
+}
+
+/** Free 1/day Style generate — session day stamp OR persisted freeGenerate bucket. */
+export function freeDailyGenerateExhausted(input: {
+  session?: Pick<import("./types").ProfileSession, "lastFreeGenerateDay" | "hasPremium"> | null;
+  budget?: StylistBudgetSnapshot | null;
+  today?: string;
+}): boolean {
+  if (input.session?.hasPremium) return false;
+  const day = input.today ?? utcDayKey();
+  if (input.session?.lastFreeGenerateDay === day) return true;
+  return Boolean(input.budget?.freeGenerate?.exhausted);
 }
 
 export function newGenerateUserKey(): string {
