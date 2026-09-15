@@ -9,6 +9,7 @@ import { FITTINGS_PARKED,
 } from "../src/lib/stylist-contract.ts";
 
 assert.equal(parseGenerateMode("styleThisPiece"), "styleThisPiece");
+assert.equal(parseGenerateMode("styleChat"), "styleChat");
 assert.equal(parseGenerateMode("closetFirst"), "closetFirst");
 assert.equal(parseGenerateMode("storeFirst"), "storeFirst");
 assert.equal(parseGenerateMode("nope"), "storeFirst");

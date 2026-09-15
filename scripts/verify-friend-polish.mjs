@@ -40,7 +40,7 @@ assert.equal(req.lookAge, "mid");
 assert.equal(req.favColors?.[0].name, "Navy");
 assert.equal(req.appearance?.hairColor, "brunette");
 assert.equal(req.gender, "female");
-assert.equal(req.styleSignals, undefined);
+assert.equal(req.styleSignals.kind, "atelier.styleSignals.v1");
 assert.equal(req.lookCount, 4);
 assert.equal(req.tier, "free");
 if (FITTINGS_PARKED) {

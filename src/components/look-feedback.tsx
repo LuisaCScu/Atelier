@@ -1,6 +1,6 @@
 "use client";
 
-import { applyLookVoteToHistory, normalizeLikedVote, type LikedLookVote } from "@/lib/liked-looks";
+import { applyLookVoteToHistory, canSaveLikedLook, likedLookId, loadLikedLooks, normalizeLikedVote, type LikedLookVote, voteKeepsHistory } from "@/lib/liked-looks";
 import { lookFittingUrl } from "@/lib/freemium";
 import { pickLookDislikeReasons } from "@/lib/style-signals";
 import type { StylistLookV1 } from "@/lib/stylist-contract";
@@ -170,6 +170,7 @@ function LookVotePanel({
       void persist("no", [], { localAlready: true });
       return;
     }
+    if (!canSaveToLookbook("wear")) return;
     setVote("wear");
     setModalOpen(false);
     setCelebrate(true);
@@ -180,12 +181,21 @@ function LookVotePanel({
   }
 
   function onMaybe() {
+    if (!canSaveToLookbook("maybe")) return;
     setVote("maybe");
     setModalOpen(false);
     setCelebrate(false);
     showAtelierToast("This look moved to your Lookbook");
     commitLocal("maybe");
     void persist("maybe", [], { localAlready: true });
+  }
+
+  function canSaveToLookbook(nextVote: Vote): boolean {
+    if (!voteKeepsHistory(nextVote)) return true;
+    const id = likedLookId(requestId ?? "unknown", look.id);
+    if (canSaveLikedLook(loadLikedLooks(), id)) return true;
+    showAtelierToast("Free Lookbook holds 10 looks. Remove one to save another.");
+    return false;
   }
 
   function onNo() {

@@ -24,9 +24,11 @@ export async function GET(request: Request) {
         : "Filesystem inbox (local/dev). Set UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN on Vercel.",
     globalDaily: budget.globalDaily,
     userGenerate: budget.userGenerate,
+    freeGenerate: budget.freeGenerate,
     exhausted: {
       globalDaily: budget.globalDaily.exhausted,
       userGenerate: budget.userGenerate ? budget.userGenerate.exhausted : null,
+      freeGenerate: budget.freeGenerate ? budget.freeGenerate.exhausted : null,
     },
     heroCache: {
       namespace: HERO_CACHE_NAMESPACE,

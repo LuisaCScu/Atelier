@@ -1,17 +1,53 @@
 import type { ProfileSession } from "./types";
+import { CLOSET_FREE_CAP } from "./types";
 import { FITTINGS_PARKED, type StylistLookV1, type StylistRequestV1 } from "./stylist-contract";
 
 export const FREE_FITTING_COUNT = 3;
 export const PREMIUM_FITTING_COUNT = 4;
 
+/**
+ * Luisa freemium caps (2026-09). Auth is session.hasPremium (mock unlock, no Stripe).
+ * Enforce at generate / closet add / Lookbook save. Set ATELIER_ENFORCE_FREEMIUM_CAPS=0 to stub off.
+ *
+ * | Cap | Free | Where |
+ * | 1 generate / UTC day | 4-look Style/closet/store boards | requestStylistLooks |
+ * | 10 closet items | device closet | closet-store / closet/save |
+ * | 10 Lookbook saves | Wear/Maybe history | liked-looks |
+ *
+ * Fittings / worn heroes stay parked (tiles-only). styleThisPiece is not a 4-look generate.
+ */
+export const FREE_DAILY_GENERATE_LIMIT = 1;
+export const FREE_CLOSET_ITEM_CAP = CLOSET_FREE_CAP;
+export const FREE_LOOKBOOK_SAVE_CAP = 10;
+export const PREMIUM_LOOKBOOK_SAVE_CAP = 40;
+
 /** Re-export product park flag for UI call sites. */
 export { FITTINGS_PARKED };
 
-/** Create is always allowed. `"gated"` kept deprecated/unused for old call sites. */
+export function enforceFreemiumCaps(): boolean {
+  return process.env.ATELIER_ENFORCE_FREEMIUM_CAPS !== "0";
+}
+
+/** 4-look generates burn the free 1/day cap. Closet "how to style it" does not. */
+export function countsTowardFreeDailyGenerate(
+  request: Pick<StylistRequestV1, "generateMode" | "lookCount">,
+  tier: "free" | "premium"
+): boolean {
+  if (!enforceFreemiumCaps()) return false;
+  if (tier === "premium") return false;
+  if (request.generateMode === "styleThisPiece") return false;
+  return request.generateMode === "styleChat" || (request.lookCount ?? 0) >= 4;
+}
+
+export function lookbookSaveCap(hasPremium?: boolean | null): number {
+  return hasPremium ? PREMIUM_LOOKBOOK_SAVE_CAP : FREE_LOOKBOOK_SAVE_CAP;
+}
+
+/** Create is never premium-gated. Free users are rate-limited (1 generate/day), not blocked from the product. */
 export type GenerateAccess = "free" | "premium" | "gated";
 export type GenerateTier = "free" | "premium";
 
-/** Premium if hasPremium; otherwise free. Never gates create/shop. */
+/** Premium if hasPremium; otherwise free. Never gates create/shop behind paywall. */
 export function generateAccess(
   session?: ProfileSession | null,
   _opts?: { boardReady?: boolean }

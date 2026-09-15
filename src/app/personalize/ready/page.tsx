@@ -1,5 +1,4 @@
 import { PostProfileDemo } from "@/components/post-profile-demo";
-import { isReturningSignedIn, shouldAutoFirstStoreFirst } from "@/lib/onboarding";
 import { readSession } from "@/lib/session";
 import { redirect } from "next/navigation";
 
@@ -8,7 +7,7 @@ export const revalidate = 0;
 
 /**
  * Lands here right after budget / profile complete.
- * Client: fire first storeFirst in background + spotlight tab tour, then `/style`.
+ * Client: spotlight tab tour, then `/style` for occasion chat (no auto generate — 1/day cap).
  */
 export default async function PersonalizeReadyPage() {
   const session = await readSession();
@@ -16,9 +15,8 @@ export default async function PersonalizeReadyPage() {
     redirect("/personalize");
   }
 
-  // Returning signed-in never re-see the post-profile demo.
-  if (isReturningSignedIn(session) && !shouldAutoFirstStoreFirst(session)) {
-    redirect("/lookbook");
+  if (session.generated || session.stylistRequestId) {
+    redirect("/style");
   }
 
   const profileReady = Boolean(
@@ -28,9 +26,5 @@ export default async function PersonalizeReadyPage() {
     redirect("/personalize");
   }
 
-  // If first board already queued / used, still allow demo once (client key gates);
-  // autoGenerate only when first-board semantics still apply.
-  const autoGenerate = shouldAutoFirstStoreFirst(session);
-
-  return <PostProfileDemo autoGenerate={autoGenerate} />;
+  return <PostProfileDemo autoGenerate={false} />;
 }

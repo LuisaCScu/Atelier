@@ -74,7 +74,9 @@ export type StylistBudgetV1 = {
  * Friend is women-only — every piece is female apparel. Always send ≤10 when non-empty
  * (both `closetFirst` and `storeFirst`).
  *
- * Mix intent is driven by `generateMode` (Stylist implements):
+ * Mix intent is driven by `generateMode` + optional `lookMix` (Stylist implements):
+ * - styleChat (Style tab): exactly 4 looks via `lookMix` —
+ *   look 1 mostly closet, looks 2–3 mix closet+store, look 4 store-only (no closet)
  * - closetFirst: core from closet; 1–2 store gap fillers; prefer `mixCloset`
  * - storeFirst: store priority; ≤1 closet if fits; `storeNew` / `mix`
  * - styleThisPiece: every look includes `closetPieceId`; fill rest with store SKUs;
@@ -101,8 +103,34 @@ export type StylistClosetPieceV1 = {
 
 export type StylistLookSourceV1 = "mixCloset" | "mix" | "storeNew";
 
-/** Style my closet → closetFirst; Style a new outfit → storeFirst; How to style it → styleThisPiece. */
-export type StylistGenerateModeV1 = "closetFirst" | "storeFirst" | "styleThisPiece";
+/** Per-look closet/store recipe on Style chat Generate (always 4 looks). */
+export type StylistLookMixSlotV1 = {
+  look: 1 | 2 | 3 | 4;
+  source: StylistLookSourceV1;
+  /** How much of this look should come from the client closet. Look 4 is store-only. */
+  closet: "mostly" | "mix" | "none";
+};
+
+/**
+ * Luisa Style Generate lock (2026-09): 4 looks —
+ * 1 mostly closet, 2–3 mix closet+store, 4 store-only (no closet pieces).
+ */
+export const STYLE_CHAT_LOOK_MIX: StylistLookMixSlotV1[] = [
+  { look: 1, source: "mixCloset", closet: "mostly" },
+  { look: 2, source: "mix", closet: "mix" },
+  { look: 3, source: "mix", closet: "mix" },
+  { look: 4, source: "storeNew", closet: "none" },
+];
+
+export function lookMixCaption(source?: StylistLookSourceV1 | null): string {
+  if (source === "mixCloset") return "Mostly closet";
+  if (source === "mix") return "Closet + store";
+  if (source === "storeNew") return "Store";
+  return "";
+}
+
+/** Style chat → styleChat; Style my closet → closetFirst; Style a new outfit → storeFirst; How to style it → styleThisPiece. */
+export type StylistGenerateModeV1 = "styleChat" | "closetFirst" | "storeFirst" | "styleThisPiece";
 
 export type StylistRequestV1 = {
   kind: typeof STYLIST_REQUEST_KIND;
@@ -127,13 +155,23 @@ export type StylistRequestV1 = {
   recentServedCoreHashes?: string[];
   budget: StylistBudgetV1;
   occasions: OccasionId[];
+  /**
+   * Free-text details from Style chat ("dinner, keep it easy"). Complements `occasions`.
+   * Stylist should honor this as the dressing brief.
+   */
+  occasionNote?: string;
   lookCount: number;
   /**
-   * Style my closet → `closetFirst`; Style a new outfit → `storeFirst`;
+   * Style chat → `styleChat`; Style my closet → `closetFirst`; Style a new outfit → `storeFirst`;
    * How to style it → `styleThisPiece`. Required on new packets.
    * Stylist soft-defaults `storeFirst` if missing on old packets.
    */
   generateMode: StylistGenerateModeV1;
+  /**
+   * Required on `styleChat` (and allowed on other 4-look modes). Stylist emits matching `look.source`.
+   * Look 1 mostly closet; 2–3 mix; 4 store-only (no closet).
+   */
+  lookMix?: StylistLookMixSlotV1[];
   /** Required when `generateMode` is `styleThisPiece` — that closet piece must appear in every look. */
   closetPieceId?: string;
   catalogVersion?: string;
@@ -344,7 +382,9 @@ export function catalogSliceForSession(session: ProfileSession): {
 }
 
 export function parseGenerateMode(raw: unknown): StylistGenerateModeV1 {
-  if (raw === "closetFirst" || raw === "storeFirst" || raw === "styleThisPiece") return raw;
+  if (raw === "styleChat" || raw === "closetFirst" || raw === "storeFirst" || raw === "styleThisPiece") {
+    return raw;
+  }
   // Stylist soft-defaults storeFirst if missing on old packets — Atelier matches that.
   return "storeFirst";
 }
@@ -365,13 +405,19 @@ export function buildStylistRequest(
     freeFirstBoard?: boolean;
     generateMode?: StylistGenerateModeV1;
     closetPieceId?: string;
+    occasions?: OccasionId[];
+    occasionNote?: string;
+    lookMix?: StylistLookMixSlotV1[];
   }
 ): StylistRequestV1 {
   const generateMode = parseGenerateMode(options?.generateMode);
   const styleThisPiece = generateMode === "styleThisPiece";
+  const styleChat = generateMode === "styleChat";
   const closetPieceId = parseClosetPieceId(options?.closetPieceId);
   // How to style it: 2–3 tiles-only boards (prefer 3). Never fittings on this path.
-  const lookCount = options?.lookCount ?? (styleThisPiece ? STYLIST_STYLE_THIS_PIECE_LOOK_COUNT : STYLIST_LOOK_COUNT);
+  // Style chat: exactly 4 looks (closet mix recipe).
+  const lookCount =
+    options?.lookCount ?? (styleThisPiece ? STYLIST_STYLE_THIS_PIECE_LOOK_COUNT : STYLIST_LOOK_COUNT);
   const catalog = catalogSliceForSession(session);
   const styleSignals = styleSignalsFromSession(session);
   const closet = options?.closet?.length ? options.closet.slice(0, 10) : undefined;
@@ -420,10 +466,21 @@ export function buildStylistRequest(
       max: session.budgetMax,
       currency: "USD",
     },
-    occasions: session.occasions.length ? session.occasions : ["weekend"],
+    occasions: options?.occasions?.length
+      ? options.occasions
+      : session.occasions.length
+        ? session.occasions
+        : ["weekend"],
     lookCount,
     generateMode,
     ...(styleThisPiece && closetPieceId ? { closetPieceId } : {}),
+    ...(styleChat || options?.lookMix
+      ? { lookMix: options?.lookMix ?? STYLE_CHAT_LOOK_MIX }
+      : {}),
+    ...(() => {
+      const note = (options?.occasionNote ?? session.styleBrief)?.trim().slice(0, 280);
+      return note ? { occasionNote: note } : {};
+    })(),
     freeFirstBoard,
     tier,
     fittingCount,

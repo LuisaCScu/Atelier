@@ -1,29 +1,39 @@
 "use client";
 
-import { FirstBoardAutoGenerate } from "@/components/first-board-auto";
-import { OnceForm } from "@/components/once-form";
-import { StyleMyClosetCta } from "@/components/style-my-closet-cta";
-import { ctaPrimary } from "@/components/marks";
-import { cn } from "cn";
+import { StyleGenerateChat } from "@/components/style-generate-chat";
+import type { GenerateAccess } from "@/lib/freemium";
+import type { OccasionId } from "@/lib/types";
 
-/** Pinned Style-tab CTA — Create new looks (regenerate) + quiet closet. */
+/** Pinned Style-tab Generate — chat (occasion + details) → 4 looks. */
 export function StyleGenerateCtas({
   className,
-  autoFirstStoreFirst = false,
+  autoFirstStoreFirst: _autoFirstStoreFirst = false,
+  action = "/generate",
+  quotaExhausted = false,
+  generateAccess,
+  generateUserKey,
+  defaultOccasion,
+  defaultDetails,
 }: {
   className?: string;
-  /** One auto storeFirst only for the first board ever — never regenerate. */
+  /** @deprecated Style chat replaced auto storeFirst so the 1/day cap is not burned without an occasion. */
   autoFirstStoreFirst?: boolean;
+  action?: "/generate" | "/regenerate";
+  quotaExhausted?: boolean;
+  generateAccess?: GenerateAccess;
+  generateUserKey?: string | null;
+  defaultOccasion?: OccasionId;
+  defaultDetails?: string;
 }) {
   return (
-    <div className={cn("space-y-2", className)}>
-      <FirstBoardAutoGenerate enabled={autoFirstStoreFirst} />
-      <OnceForm action="/regenerate" generateMode="storeFirst">
-        <button type="submit" className={ctaPrimary}>
-          Create new looks
-        </button>
-      </OnceForm>
-      <StyleMyClosetCta variant="quiet" className="mt-0" />
-    </div>
+    <StyleGenerateChat
+      className={className}
+      action={action}
+      quotaExhausted={quotaExhausted}
+      generateAccess={generateAccess}
+      generateUserKey={generateUserKey}
+      defaultOccasion={defaultOccasion}
+      defaultDetails={defaultDetails}
+    />
   );
 }

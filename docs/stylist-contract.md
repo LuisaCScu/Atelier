@@ -34,9 +34,11 @@ Built when the user requests looks (Quick or Deep). Persisted in the stylist inb
 | `dislikedSilhouettes` | Optional silhouette tags from disliked cards (silhouettes on liked cards are dropped) |
 | `styleSignals` | Always on new packets: `atelier.styleSignals.v1` with **`avoid.pieceIds`** (per-user disliked / voted-no pieces, esp. shoes) + **`feedback.lastReasons` / `lastLookId` / `lookVotes`**. Optional `recentServedCoreHashes` / `avoid.lookIds`. Richer axes layer — does **not** replace `likedAesthetics`. No `cardVotes[]`. **Per-user bans only — never global SKU ban.** |
 | `budget` | `{ min, max, currency: "USD" }` |
-| `occasions` | `work` \| `weekend` \| `night` \| `travel` \| `event` |
-| `lookCount` | `4` for closetFirst / storeFirst; **2–3** (prefer `3`) for `styleThisPiece` |
-| `generateMode` | **Required** on new packets: `"closetFirst"` (Style my closet), `"storeFirst"` (Style a new outfit), or `"styleThisPiece"` (How to style it). Stylist soft-defaults `storeFirst` if missing on old packets. |
+| `occasions` | `work` \| `weekend` \| `night` \| `travel` \| `event` — Style chat maps chips / free text here |
+| `occasionNote` | Optional free-text details from Style chat (`"dinner, keep it easy"`). Stylist honors as the dressing brief. |
+| `lookCount` | `4` for `styleChat` / closetFirst / storeFirst; **2–3** (prefer `3`) for `styleThisPiece` |
+| `generateMode` | **Required** on new packets: `"styleChat"` (Style tab chat), `"closetFirst"` (Style my closet), `"storeFirst"` (Style a new outfit), or `"styleThisPiece"` (How to style it). Stylist soft-defaults `storeFirst` if missing on old packets. |
+| `lookMix` | Required on `styleChat`: `[{ look: 1, source: "mixCloset", closet: "mostly" }, { look: 2, source: "mix", closet: "mix" }, { look: 3, source: "mix", closet: "mix" }, { look: 4, source: "storeNew", closet: "none" }]`. Look 4 is store-only — no closet pieces. |
 | `closetPieceId` | Required when `generateMode` is `styleThisPiece` — that closet piece must appear in every look. |
 | `freeFirstBoard` | `true` on the first unpaid board so Stylist only gens **3 fittings** |
 | `tier` | `"free"` \| `"premium"` |
@@ -94,7 +96,7 @@ Lookbook votes (`POST /api/style/feedback`) soft-update the same object. Body: `
 
 ## Closet mix (`closet[]` + `generateMode` on the request)
 
-Present whenever look generation / regenerate runs and `atelier.closet.v2` has ≥1 piece — **`closetFirst`, `storeFirst`, and `styleThisPiece`**. Cap ≤10 via `closetToStylistPacket`. For `styleThisPiece`, closet must include `closetPieceId`. Women-only (Friend). Each entry:
+Present whenever look generation / regenerate runs and `atelier.closet.v2` has ≥1 piece — **`styleChat`, `closetFirst`, `storeFirst`, and `styleThisPiece`**. Cap ≤10 via `closetToStylistPacket`. For `styleThisPiece`, closet must include `closetPieceId`. Women-only (Friend). Each entry:
 
 ```json
 {
@@ -112,16 +114,17 @@ Present whenever look generation / regenerate runs and `atelier.closet.v2` has �
 
 **`generateMode` (Stylist implements; Atelier documents only):**
 
-- **`closetFirst`** (Style my closet): core from closet; 1–2 store gap fillers; prefer `mixCloset`.
+- **`styleChat`** (Style tab chat): user sends occasion + details; **exactly 4 looks** via `lookMix` — look 1 mostly closet, looks 2–3 mix closet+store, look 4 **store-only** (no closet). Tiles-only while fittings are parked.
+- **`closetFirst`** (Style my closet, from Closet): core from closet; 1–2 store gap fillers; prefer `mixCloset`.
 - **`storeFirst`** (Style a new outfit): store priority; ≤1 closet piece if it fits; `storeNew` / `mix`.
 - **`styleThisPiece`** (How to style it, from `/closet/[id]`): every look includes `closetPieceId`; fill the rest with store SKUs; vary silhouettes across boards; **tiles-only** (`fittingCount: 0`, lookCount 2–3). Distinct from full-wardrobe Style my closet.
 - Soft-default **`storeFirst`** when the field is missing on old packets.
 
-**Legacy mix labels (of each 4 looks; UI may show later):**
+**Style chat mix (`lookMix` / `look.source`):**
 
-1. Mostly closet + 1–2 store elevate → `look.source: "mixCloset"`
-2. Mostly/all store new → `look.source: "storeNew"`
-3–4. Mix → `look.source: "mix"`
+1. Mostly closet + optional store elevate → `look.source: "mixCloset"` (`closet: "mostly"`)
+2–3. Mix closet + store → `mix` (`closet: "mix"`)
+4. Store-only — **no closet pieces** → `storeNew` (`closet: "none"`)
 
 Core / elevate budget rules are unchanged. Parked: video→stills, Elevate suggestions, real payments.
 
@@ -138,15 +141,19 @@ Optional: `favColors` `{ name, hex }[]` — favorites they wear, collected on Co
 
 Optional `appearance` tags (`hairColor`, `hairLength`, `eyes`, `skinToneBand`) and `lookAge` so full-body fittings match the person. Face photo is optional; guesses are editable. Do not invent paid vision.
 
-## Freemium (fittings unlock — create stays free)
+## Freemium (Luisa caps, 2026-09)
 
-Atelier is **free to style, create looks, and shop**. Premium unlocks worn fittings / See it on — not the right to use the app.
+Constants live in `src/lib/freemium.ts`. Auth is `session.hasPremium` (mock unlock, no Stripe). Set `ATELIER_ENFORCE_FREEMIUM_CAPS=0` to stub caps off.
 
-1. First Generate: `freeFirstBoard: true`, `tier: "free"`, `lookCount: 4`, `fittingCount: 3`. Stylist gens **three** worn fittings + one Premium placeholder look.
-2. Still **four looks**. Looks 1–3 include a fitting (`heroImage` / `fittingImage`). Look 4 must still include tiles, shop, and recipe. Friend shows **See it on** (Premium sheet) in that slot.
-3. Later Generate (no Premium): `freeFirstBoard: false`, `tier: "free"`, `fittingCount: 0` — tiles-only boards; create/shop stay free. Soft upsell only.
-4. Premium: `tier: "premium"`, `fittingCount: 4` — four fittings on later boards. Mock unlock (no Stripe). Create is **never** gated (`generateAccess` is only `"free" | "premium"`).
-5. Friend UI locks look 4 on the first free board; on later free boards all looks are fitting-locked (tiles-only).
+| Cap | Free | Enforcement |
+| --- | --- | --- |
+| Generate | **1 per UTC day** (4-look `styleChat` / closetFirst / storeFirst) | `requestStylistLooks` via `lastFreeGenerateDay` + `freeGenerate` budget bucket |
+| Closet | **10 items** | `closet-store` / `POST /closet/save` (`CLOSET_FREE_CAP`) |
+| Lookbook | **10 Wear/Maybe saves** | `liked-looks` `canSaveLikedLook` / Wear·Maybe UI |
+
+`styleThisPiece` does not burn the daily generate. Fittings / worn heroes stay **parked** (`fittingCount: 0`, tiles-only). Create is not a paywall — free users are rate-limited.
+
+Legacy fittings-unlock notes (inactive while `FITTINGS_PARKED`): first unpaid board claimed 3 fittings; later free boards tiles-only; Premium 4 fittings. Mock unlock still lives on `/premium`.
 
 Ingest still accepts a look without `heroImage` when `pieces[]` and recipe copy exist.
 

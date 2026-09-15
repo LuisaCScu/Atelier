@@ -31,7 +31,7 @@ export type ClosetWriteResult =
   | { ok: true }
   | { ok: false; reason: ClosetWriteReason; message: string };
 
-const CAP_MESSAGE = "Free closet is full on this device.";
+const CAP_MESSAGE = "Free closet holds 10 pieces on this device.";
 const STORAGE_MESSAGE =
   "This device is out of storage space for your closet. Remove a piece or free browser storage, then try again.";
 const UNKNOWN_MESSAGE = "Couldn’t save to this device. Try again.";

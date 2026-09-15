@@ -1,9 +1,31 @@
 import type { StylistLookV1, StylistPieceV1 } from "./stylist-contract";
-import { lookFittingUrl } from "./freemium";
+import { lookFittingUrl, lookbookSaveCap } from "./freemium";
 import { upsertLookVote } from "./look-votes";
 import { LIKED_LOOKS_KEY } from "./types";
 
 export const LIKED_LOOKS_EVENT = "atelier:likedLooks";
+
+function clientHasPremium(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const match = document.cookie.match(/(?:^|; )atelier\.v2=([^;]*)/);
+    if (!match?.[1]) return false;
+    const data = JSON.parse(decodeURIComponent(match[1])) as { hasPremium?: boolean };
+    return data?.hasPremium === true;
+  } catch {
+    return false;
+  }
+}
+
+export function likedLookSaveCap(hasPremium = clientHasPremium()): number {
+  return lookbookSaveCap(hasPremium);
+}
+
+/** True when adding this id would stay under the free/premium Lookbook save cap. Updates to an existing save always allowed. */
+export function canSaveLikedLook(items: LikedLook[], id: string, hasPremium = clientHasPremium()): boolean {
+  if (items.some((item) => item.id === id)) return true;
+  return items.length < likedLookSaveCap(hasPremium);
+}
 
 export type LikedLookVote = "wear" | "maybe" | "no" | "like" | "dislike" | "skip";
 
@@ -97,12 +119,17 @@ function isLikedLook(value: unknown): value is LikedLook {
 
 export function saveLikedLooks(items: LikedLook[]) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(LIKED_LOOKS_KEY, JSON.stringify(items.slice(0, 40)));
+  const cap = likedLookSaveCap();
+  window.localStorage.setItem(LIKED_LOOKS_KEY, JSON.stringify(items.slice(0, cap)));
   window.dispatchEvent(new Event(LIKED_LOOKS_EVENT));
 }
 
-export function upsertLikedLook(look: LikedLook) {
-  const next = [look, ...loadLikedLooks().filter((item) => item.id !== look.id)].slice(0, 40);
+export function upsertLikedLook(look: LikedLook): LikedLook[] | { ok: false; reason: "cap" } {
+  const current = loadLikedLooks();
+  if (!canSaveLikedLook(current, look.id)) {
+    return { ok: false, reason: "cap" };
+  }
+  const next = [look, ...current.filter((item) => item.id !== look.id)].slice(0, likedLookSaveCap());
   saveLikedLooks(next);
   return next;
 }
@@ -125,7 +152,9 @@ export function applyLookVoteToHistory(input: {
   }
   const saved = likedLookFromVote(input);
   if (!saved) return loadLikedLooks();
-  return upsertLikedLook(saved);
+  const next = upsertLikedLook(saved);
+  if (Array.isArray(next)) return next;
+  return loadLikedLooks();
 }
 
 export function subscribeLikedLooks(onChange: () => void) {

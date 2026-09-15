@@ -29,9 +29,8 @@ export type FirstBoardEnqueueResult =
   | { ok: false; error: string; quotaExhausted?: boolean; premiumRequired?: boolean };
 
 /**
- * Programmatic first-board storeFirst — same path as OnceForm → /api/stylist/generate.
- * Creates lasting pending ASAP so Flow/Stylist can pick up without waiting for Style.
- * One-shot via FIRST_BOARD_AUTO_KEY (mirrors FirstBoardAutoGenerate).
+ * Programmatic first-board storeFirst — parked while Style chat is the generate UX.
+ * Kept so a future first-board preheat can reuse the same path without burning 1/day blindly.
  */
 export async function enqueueFirstBoardStoreFirst(): Promise<FirstBoardEnqueueResult> {
   if (firstBoardAutoAlreadyArmed()) {

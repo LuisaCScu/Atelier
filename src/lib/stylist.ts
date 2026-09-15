@@ -1,19 +1,22 @@
 import {
   budgetExhausted,
   countsTowardUserGenerate,
+  freeDailyGenerateExhausted,
+  incrementFreeDailyGenerate,
   incrementGenerateBudget,
   mappedUserKeyForRequest,
   newGenerateUserKey,
   readInflightRequestId,
   readStylistBudget,
   recordBudgetRequestMapping,
+  utcDayKey,
   writeInflightRequestId,
   type StylistBudgetSnapshot,
 } from "./stylist-budget";
 import { deleteInbox, listPendingRequests } from "./stylist-inbox";
 import { writeSession } from "./session";
 import { localStylistResponse } from "./stylist-local";
-import { generateAccess } from "./freemium";
+import { countsTowardFreeDailyGenerate, generateAccess } from "./freemium";
 import { hostClosetImagesForStylist } from "./closet-cutout-host";
 import {
   buildLookFingerprint,
@@ -33,7 +36,7 @@ import {
 } from "./stylist-contract";
 import { inboxResponse, readInbox, writeInboxRequest, writeInboxResponse } from "./stylist-inbox";
 import { clearReadyCookie, readReadyCookie, writeReadyCookie } from "./stylist-mirror";
-import type { ProfileSession } from "./types";
+import type { OccasionId, ProfileSession } from "./types";
 
 export function sessionRequestIds(session?: ProfileSession | null, extra?: string | null): string[] {
   const ids = [extra, session?.stylistRequestId, ...(session?.stylistRequestIds ?? [])].filter(
@@ -276,10 +279,17 @@ export async function requestStylistLooks(
     closet?: StylistClosetPieceV1[];
     generateMode?: StylistGenerateModeV1;
     closetPieceId?: string;
+    occasions?: OccasionId[];
+    occasionNote?: string;
   }
 ): Promise<RequestStylistResult> {
   const generateUserKey = session.generateUserKey?.trim() || newGenerateUserKey();
-  const withKey: ProfileSession = { ...session, generateUserKey };
+  const withKey: ProfileSession = {
+    ...session,
+    generateUserKey,
+    ...(options?.occasions?.length ? { occasions: options.occasions } : {}),
+    ...(options?.occasionNote ? { styleBrief: options.occasionNote } : {}),
+  };
   const now = Date.now();
   const access = generateAccess(withKey);
   const tier = access === "premium" ? "premium" : "free";
@@ -290,7 +300,7 @@ export async function requestStylistLooks(
 
   // Fittings parked → freeFirstBoard false in buildStylistRequest; keep local false so we do not claim a free fittings board.
   const freeFirstBoard = false;
-  // Build before quota gate so tiles-only (fittingCount 0 / styleThisPiece) can create at 5/5.
+  // Build before quota gate so tiles-only (fittingCount 0 / styleThisPiece) can create at 5/5 fittings COGS.
   const draft = buildStylistRequest(
     { ...withKey, stylistRequestId: undefined },
     {
@@ -299,6 +309,8 @@ export async function requestStylistLooks(
       freeFirstBoard,
       generateMode: options?.generateMode,
       closetPieceId: options?.closetPieceId,
+      occasions: options?.occasions,
+      occasionNote: options?.occasionNote ?? withKey.styleBrief,
     }
   );
 
@@ -308,6 +320,33 @@ export async function requestStylistLooks(
     closetPieceIds: (draft.closet ?? []).map((p) => p.id),
     focusPieceId: draft.closetPieceId,
   });
+
+  const metersGenerate = countsTowardUserGenerate(draft);
+  const metersFreeDaily = countsTowardFreeDailyGenerate(draft, tier);
+
+  async function quotaSnapshot(): Promise<StylistBudgetSnapshot> {
+    return readStylistBudget({ userKey: generateUserKey });
+  }
+
+  async function blockedByQuota(budget: StylistBudgetSnapshot): Promise<boolean> {
+    if (metersGenerate && budgetExhausted(budget)) return true;
+    if (metersFreeDaily && freeDailyGenerateExhausted({ session: withKey, budget })) return true;
+    return false;
+  }
+
+  async function stampMeters(next: ProfileSession, requestId: string): Promise<ProfileSession> {
+    let stamped = next;
+    if (metersGenerate) {
+      await incrementGenerateBudget({ userKey: generateUserKey, requestId });
+    } else {
+      await recordBudgetRequestMapping({ userKey: generateUserKey, requestId });
+    }
+    if (metersFreeDaily) {
+      await incrementFreeDailyGenerate({ userKey: generateUserKey, requestId });
+      stamped = { ...stamped, lastFreeGenerateDay: utcDayKey() };
+    }
+    return stamped;
+  }
 
   // Fingerprint cache hit → store ready immediately (≤2s perceived), no Stylist pending wait.
   // Never remapping prior boards on force regenerate / re-Create after votes (fingerprint also busts).
@@ -322,9 +361,8 @@ export async function requestStylistLooks(
           generateMode: draft.generateMode,
           keepRequestId: draft.requestId,
         });
-        const metersGenerate = countsTowardUserGenerate(draft);
-        const budget = await readStylistBudget({ userKey: generateUserKey });
-        if (metersGenerate && budgetExhausted(budget)) {
+        const budget = await quotaSnapshot();
+        if (await blockedByQuota(budget)) {
           await writeSession(withKey);
           const existing = session.stylistRequestId ? await readInbox(session.stylistRequestId) : null;
           return {
@@ -335,7 +373,7 @@ export async function requestStylistLooks(
             budgetExhausted: true,
           };
         }
-        const next: ProfileSession = {
+        let next: ProfileSession = {
           ...withKey,
           stylistRequestId: draft.requestId,
           stylistRequestIds: [
@@ -350,13 +388,9 @@ export async function requestStylistLooks(
         await writeInboxResponse(ready);
         await writeReadyCookie(ready);
         await writeInflightRequestId(generateUserKey, draft.requestId);
-        if (metersGenerate) {
-          await incrementGenerateBudget({ userKey: generateUserKey, requestId: draft.requestId });
-        } else {
-          await recordBudgetRequestMapping({ userKey: generateUserKey, requestId: draft.requestId });
-        }
+        next = await stampMeters(next, draft.requestId);
         await writeSession(next);
-        const after = await readStylistBudget({ userKey: generateUserKey });
+        const after = await quotaSnapshot();
         return {
           request: draft,
           status: "ready",
@@ -395,10 +429,8 @@ export async function requestStylistLooks(
   }
 
   const request = draft;
-  const metersGenerate = countsTowardUserGenerate(request);
-
-  const budget = await readStylistBudget({ userKey: generateUserKey });
-  if (metersGenerate && budgetExhausted(budget)) {
+  const budget = await quotaSnapshot();
+  if (await blockedByQuota(budget)) {
     await writeSession(withKey);
     const existing = session.stylistRequestId ? await readInbox(session.stylistRequestId) : null;
     return {
@@ -418,7 +450,7 @@ export async function requestStylistLooks(
     keepRequestId: request.requestId,
   });
 
-  const next: ProfileSession = {
+  let next: ProfileSession = {
     ...withKey,
     stylistRequestId: request.requestId,
     stylistRequestIds: [request.requestId, ...(session.stylistRequestIds ?? []).filter((id) => id !== request.requestId)].slice(
@@ -432,12 +464,7 @@ export async function requestStylistLooks(
   };
   await writeInboxRequest(request);
   await writeInflightRequestId(generateUserKey, request.requestId);
-  if (metersGenerate) {
-    await incrementGenerateBudget({ userKey: generateUserKey, requestId: request.requestId });
-  } else {
-    // Keep request→user mapping for budget UI without burning user/global caps.
-    await recordBudgetRequestMapping({ userKey: generateUserKey, requestId: request.requestId });
-  }
+  next = await stampMeters(next, request.requestId);
   await clearReadyCookie();
   await writeSession(next);
   await notifyStyleSite(request);

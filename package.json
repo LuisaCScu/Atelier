@@ -7,7 +7,7 @@
     "build": "next build --webpack",
     "start": "next start --hostname 0.0.0.0 --port 43147",
     "lint": "eslint",
-    "verify": "npx --yes tsx scripts/verify-closet.mjs && npx --yes tsx scripts/verify-hero-cache.mjs && npx --yes tsx scripts/verify-friend-polish.mjs && npx --yes tsx scripts/verify-freemium.mjs && npx --yes tsx scripts/verify-likes.mjs && npx --yes tsx scripts/verify-style-this-piece.mjs && npx --yes tsx scripts/verify-look-dislike.mjs && npx --yes tsx scripts/verify-onboarding.mjs && npx --yes tsx scripts/verify-flat-lay.mjs && npx --yes tsx scripts/verify-tiles-ready.mjs"
+    "verify": "npx --yes tsx scripts/verify-closet.mjs && npx --yes tsx scripts/verify-hero-cache.mjs && npx --yes tsx scripts/verify-friend-polish.mjs && npx --yes tsx scripts/verify-freemium.mjs && npx --yes tsx scripts/verify-likes.mjs && npx --yes tsx scripts/verify-style-this-piece.mjs && npx --yes tsx scripts/verify-style-chat.mjs && npx --yes tsx scripts/verify-look-dislike.mjs && npx --yes tsx scripts/verify-onboarding.mjs && npx --yes tsx scripts/verify-flat-lay.mjs && npx --yes tsx scripts/verify-tiles-ready.mjs"
   },
   "dependencies": {
     "@ai-sdk/gateway": "^4.0.80",
