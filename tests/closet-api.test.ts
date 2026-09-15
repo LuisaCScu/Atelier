@@ -72,6 +72,67 @@ test('color analysis allows hosted hosts when the unlock flag is set',async()=>{
 test('connection check exposes status only, never credentials',async()=>{
  const response=await GET(new NextRequest('http://127.0.0.1:43148/api/closet',{headers:{host:'127.0.0.1:43148'}}));const data=await response.json();assert.equal(typeof data.ready,'boolean');assert.deepEqual(Object.keys(data).sort(),['model','ready']);
 });
+test('GET closet reports Gateway image model when AI_GATEWAY_API_KEY is set',async()=>{
+ const previousGateway=process.env.AI_GATEWAY_API_KEY,previousGatewayModel=process.env.CLOSET_GATEWAY_IMAGE_MODEL,previousOpenAIModel=process.env.CLOSET_IMAGE_MODEL;
+ process.env.AI_GATEWAY_API_KEY='gw-test';delete process.env.CLOSET_GATEWAY_IMAGE_MODEL;process.env.CLOSET_IMAGE_MODEL='gpt-image-2.5-sunburst';
+ try{
+  const response=await GET(new NextRequest('http://127.0.0.1:43148/api/closet',{headers:{host:'127.0.0.1:43148'}}));
+  assert.equal(response.status,200);
+  assert.equal((await response.json()).model,'openai/gpt-image-1');
+ }finally{
+  if(previousGateway===undefined)delete process.env.AI_GATEWAY_API_KEY;else process.env.AI_GATEWAY_API_KEY=previousGateway;
+  if(previousGatewayModel===undefined)delete process.env.CLOSET_GATEWAY_IMAGE_MODEL;else process.env.CLOSET_GATEWAY_IMAGE_MODEL=previousGatewayModel;
+  if(previousOpenAIModel===undefined)delete process.env.CLOSET_IMAGE_MODEL;else process.env.CLOSET_IMAGE_MODEL=previousOpenAIModel;
+ }
+});
+test('GET closet reports OpenAI fallback model when Gateway is absent',async()=>{
+ const previousGateway=process.env.AI_GATEWAY_API_KEY,previousOpenAIModel=process.env.CLOSET_IMAGE_MODEL;
+ delete process.env.AI_GATEWAY_API_KEY;process.env.CLOSET_IMAGE_MODEL='gpt-image-2.5-sunburst';
+ try{
+  const response=await GET(new NextRequest('http://127.0.0.1:43148/api/closet',{headers:{host:'127.0.0.1:43148'}}));
+  assert.equal(response.status,200);
+  assert.equal((await response.json()).model,'gpt-image-2.5-sunburst');
+ }finally{
+  if(previousGateway===undefined)delete process.env.AI_GATEWAY_API_KEY;else process.env.AI_GATEWAY_API_KEY=previousGateway;
+  if(previousOpenAIModel===undefined)delete process.env.CLOSET_IMAGE_MODEL;else process.env.CLOSET_IMAGE_MODEL=previousOpenAIModel;
+ }
+});
+test('closet POST empty body returns 400, not 502',async()=>{
+ const previousKey=process.env.OPENAI_API_KEY,previousGateway=process.env.AI_GATEWAY_API_KEY;
+ process.env.OPENAI_API_KEY='test-placeholder';delete process.env.AI_GATEWAY_API_KEY;
+ try{
+  const response=await POST(new NextRequest('http://127.0.0.1:43148/api/closet',{method:'POST',headers:{host:'127.0.0.1:43148','Content-Type':'application/json'},body:''}));
+  assert.equal(response.status,400);
+  assert.match((await response.json()).error,/photo|JSON/i);
+ }finally{
+  if(previousKey===undefined)delete process.env.OPENAI_API_KEY;else process.env.OPENAI_API_KEY=previousKey;
+  if(previousGateway===undefined)delete process.env.AI_GATEWAY_API_KEY;else process.env.AI_GATEWAY_API_KEY=previousGateway;
+ }
+});
+test('closet POST invalid JSON returns 400, not 502',async()=>{
+ const previousKey=process.env.OPENAI_API_KEY,previousGateway=process.env.AI_GATEWAY_API_KEY;
+ process.env.OPENAI_API_KEY='test-placeholder';delete process.env.AI_GATEWAY_API_KEY;
+ try{
+  const response=await POST(new NextRequest('http://127.0.0.1:43148/api/closet',{method:'POST',headers:{host:'127.0.0.1:43148','Content-Type':'application/json'},body:'{'}));
+  assert.equal(response.status,400);
+  assert.match((await response.json()).error,/photo|JSON/i);
+ }finally{
+  if(previousKey===undefined)delete process.env.OPENAI_API_KEY;else process.env.OPENAI_API_KEY=previousKey;
+  if(previousGateway===undefined)delete process.env.AI_GATEWAY_API_KEY;else process.env.AI_GATEWAY_API_KEY=previousGateway;
+ }
+});
+test('color analysis POST empty body returns 400, not 502',async()=>{
+ const previousKey=process.env.OPENAI_API_KEY,previousGateway=process.env.AI_GATEWAY_API_KEY;
+ process.env.OPENAI_API_KEY='test-placeholder';delete process.env.AI_GATEWAY_API_KEY;
+ try{
+  const response=await colorAnalysisPOST(new NextRequest('http://127.0.0.1:43148/api/color-analysis',{method:'POST',headers:{host:'127.0.0.1:43148','Content-Type':'application/json'},body:''}));
+  assert.equal(response.status,400);
+  assert.match((await response.json()).error,/photo|JSON/i);
+ }finally{
+  if(previousKey===undefined)delete process.env.OPENAI_API_KEY;else process.env.OPENAI_API_KEY=previousKey;
+  if(previousGateway===undefined)delete process.env.AI_GATEWAY_API_KEY;else process.env.AI_GATEWAY_API_KEY=previousGateway;
+ }
+});
 test('single-item redo forwards corrected color and note to image editing',async()=>{
  const oldKey=process.env.OPENAI_API_KEY,oldGateway=process.env.AI_GATEWAY_API_KEY,oldFetch=globalThis.fetch;
  process.env.OPENAI_API_KEY='test-placeholder';delete process.env.AI_GATEWAY_API_KEY;
